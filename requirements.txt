@@ -1,0 +1,14 @@
+langchain
+langchain-google-genai
+google-generativeai
+python-dotenv
+pydantic
+fastapi
+uvicorn
+pandas
+python-docx
+pytesseract
+Pillow
+langchain_community
+docx2txt
+python-multipart
