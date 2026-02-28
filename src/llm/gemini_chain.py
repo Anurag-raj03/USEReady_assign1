@@ -8,7 +8,8 @@ def get_chain(use_fewshot=True):
     llm = ChatGoogleGenerativeAI(
         model=MODEL_NAME,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0
+        temperature=0,
+        top_p=0.1
     )
     structured_llm = llm.with_structured_output(RentalMetadata)
     fewshot_text = ""
@@ -20,26 +21,80 @@ def get_chain(use_fewshot=True):
         )
 
     system_prompt = f"""
-You are a precise rental agreement information extraction system.
+You are a strict legal information extraction system.
 
-Your task is to extract structured metadata from the document.
+Extract structured rental agreement metadata accurately and consistently.
 
-STRICT RULES (follow carefully):
+========================
+FIELD DEFINITIONS
+========================
 
-1. Extract only the minimal core value for each field.
-2. Do NOT rewrite dates into natural language.
-3. Do NOT correct invalid dates.
-4. Do NOT interpret or infer missing values.
-5. Do NOT add titles (Mr., Mrs., Dr., etc).
-6. Do NOT include addresses, S/O, W/O, D/O, or relationship details.
-7. Agreement Value must contain digits only (no commas, no currency symbols).
-8. Renewal Notice is usually mentioned near expiry clause or termination clause. Look carefully for notice period in days. Renewal Notice must contain digits only.
-9. Dates must be returned exactly as written in the document.
-10. If a field is not found, return null.
-11. Return only structured output — no explanation.
+1. Agreement Value
+- Extract ONLY the MONTHLY RENTAL AMOUNT.
+- Look near phrases such as:
+  "monthly rent", "rent per month", "rent shall be", "agreed rent".
+- DO NOT extract:
+  • security deposit
+  • advance
+  • maintenance
+  • refundable amount
+  • total yearly rent
+- Return digits only.
+- No commas.
+- No currency symbols.
 
-Renewal Notice refers to the number of days prior notice required before termination or expiry. 
-Search the entire document carefully for phrases containing "notice", "prior notice", "before expiry", or "termination".
+2. Agreement Start Date
+- The date tenancy begins.
+- Often mentioned as:
+  "commencing from", "with effect from".
+- Convert to DD.MM.YYYY format.
+- Example correct format: 20.05.2007
+- Do NOT return natural language dates.
+- Do NOT return slashes or hyphen formats.
+
+3. Agreement End Date
+- The date tenancy expires.
+- Often mentioned as:
+  "ending on", "valid until", "for a period of".
+- Convert to DD.MM.YYYY format.
+- Example correct format: 20.05.2007
+- Do NOT return natural language dates.
+- Do NOT change invalid dates if clearly written.
+
+4. Renewal Notice (Days)
+- Number of days prior notice required before termination or expiry.
+- Look for:
+  "prior notice", "termination notice", "notice period".
+- Ignore notice mentioned in other contexts.
+- Return digits only.
+
+5. Party One
+- The LESSOR / OWNER / LANDLORD.
+- Extract only the person name.
+- Remove titles such as:
+  Mr., Mrs., Ms., Dr., Prof.
+- Remove relationship terms:
+  S/O, D/O, W/O.
+- Remove addresses.
+- Keep name formatting clean.
+  Example:
+  "Mrs.Asha Ramesh & Mr.Ramesh.K.N."
+  → "Asha Ramesh & Ramesh K.N"
+
+6. Party Two
+- The LESSEE / TENANT.
+- Apply same cleaning rules as Party One.
+
+========================
+STRICT RULES
+========================
+
+1. Do NOT guess.
+2. Do NOT infer missing values.
+3. If a field is not clearly found, return null.
+4. Return ONLY structured output.
+5. No explanations.
+6. No additional text.
 
 {fewshot_text}
 """
